@@ -2,3 +2,5 @@
 data/*
 img/*
 *output*
+nn_tools/.ipynb_checkpoints/*
+nn_tools/nn_models/.ipynb_checkpoints/*
