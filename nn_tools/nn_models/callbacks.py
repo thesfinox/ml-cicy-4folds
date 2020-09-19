@@ -17,7 +17,11 @@ class PrintCheckpoint(keras.callbacks.Callback):
         self.epoch_times = []
         
     def on_train_begin(self, logs=None):
-        print(f'Training has started. Callouts will be printed every {self.interval:d} epochs.\n')
+        if self.interval > 1:
+            print(f'Training has started. Callouts will be printed every {self.interval:d} epochs.\n')
+        else:
+            print(f'Training has started. Callouts will be printed every epoch.\n')
+                
         self.train_time = time.time()
         
     def on_train_end(self, logs=None):
@@ -29,14 +33,14 @@ class PrintCheckpoint(keras.callbacks.Callback):
         
     def on_epoch_begin(self, epoch, logs=None):
         
-        if (epoch + 1) % self.interval == 0:
+        if (epoch + 1) % self.interval == 0 or epoch == 0:
             self.epoch_time = time.time()
             now = time.strftime('%d/%m/%Y at %H:%M:%S', time.localtime())
             print(f'Training epoch {epoch+1:d}. Started on {now}.\n')
         
     def on_epoch_end(self, epoch, logs=None):
         
-        if (epoch + 1) % self.interval == 0:
+        if (epoch + 1) % self.interval == 0 or epoch == 0:
             self.epoch_time = time.time() - self.epoch_time
             self.epoch_times.append(self.epoch_time)
             print(f'    Average epoch training time: {np.mean(self.epoch_times):.3f} seconds')

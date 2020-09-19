@@ -63,7 +63,7 @@ def nn_inception(input_shape,
     I = {name: x}
     
     # placeholder for ResNet
-    previous_concat = None
+    previous_concat = x
     
     # build convolutions
     for n in range(len(conv_layers)):
@@ -77,9 +77,9 @@ def nn_inception(input_shape,
                                     name=name + '_convA1b1a_' + str(n)
                                    )(a)
             a = keras.layers.LeakyReLU(conv_alpha, name=name + '_actA1b1a_' + str(n))(a)
-        
+            
         a = keras.layers.Conv2D(conv_layers[n],
-                                kernel_size=(x.shape[1], 1),
+                                kernel_size=(int(x.shape[1]), 1),
                                 padding='same',
                                 kernel_regularizer=keras.regularizers.l1_l2(l1=l1_reg, l2=l2_reg),
                                 name=name + '_convAa_' + str(n)
@@ -98,7 +98,7 @@ def nn_inception(input_shape,
             b = keras.layers.LeakyReLU(conv_alpha, name=name+ '_actA1b1b_' + str(n))(b)
         
         b = keras.layers.Conv2D(conv_layers[n],
-                                kernel_size=(1, x.shape[2]),
+                                kernel_size=(1, int(x.shape[2])),
                                 padding='same',
                                 kernel_regularizer=keras.regularizers.l1_l2(l1=l1_reg, l2=l2_reg),
                                 name=name + '_convAb_' + str(n)
@@ -223,7 +223,7 @@ def nn_inception(input_shape,
     # flatten and dropout (add a feature map if needed)
     if feat_map > 0:
         x = keras.layers.Conv2D(feat_map,
-                                kernel_size=(x.shape[1], x.shape[2]),
+                                kernel_size=(int(x.shape[1]), int(x.shape[2])),
                                 padding='valid',
                                 kernel_regularizer=keras.regularizers.l1_l2(l1=l1_reg, l2=l2_reg),
                                 name=name + '_featmap'
