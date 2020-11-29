@@ -46,4 +46,4 @@ class PrintCheckpoint(keras.callbacks.Callback):
             epoch_time = time.strftime('%H hours, %M minutes, %S seconds', time.gmtime(np.mean(self.epoch_times)))
             print(f'    Average epoch training time: {epoch_time}\n', flush=True)
             for key, value in logs.items():
-                print(f'    {key} = {value:.3f}')
+                print(f'    {key} = {value:.6f}')
