@@ -1,6 +1,7 @@
 from tensorflow import keras
 import numpy as np
 import time
+import os
 
 class PrintCheckpoint(keras.callbacks.Callback):
     '''
@@ -47,3 +48,46 @@ class PrintCheckpoint(keras.callbacks.Callback):
             print(f'    Average epoch training time: {epoch_time}\n', flush=True)
             for key, value in logs.items():
                 print(f'    {key} = {value:.6f}')
+                
+
+def model_checkpoints(outputs, root='.', validation=True, reduce_lr=None, lr_patience=150, min_lr=1.0e-6, summary=1):
+    '''
+    Create a list of checkpoints for each output.
+    
+    Needed arguments:
+        outputs: list of outputs to checkpoints.
+        
+    Optional arguments:
+        root:        root directory to save the models,
+        validation:  whether to use validation losses (or training losses if False),
+        reduce_lr:   learning rate reduction factor (if not None),
+        lr_patience: patience of the learning rate reduction,
+        min_lr:      minimum learning rate,
+        summary:     frequency of the summary statistics being printed on screen.
+        
+    Returns:
+        a list of keras.callbacks.
+    '''
+        
+    # add '_loss' to the outputs
+    outputs = ['loss'] + [output + '_loss' for output in outputs]
+    
+    # if validation, then add 'val_' in fron of the list
+    if validation:
+        outputs = ['val_' + output for output in outputs]
+    
+    # create the checkpoints
+    checkpoints = []
+    for output in outputs:
+        checkpoint = keras.callbacks.ModelCheckpoint(os.path.join(root, output + '.h5'), monitor=output, save_best_only=True)
+        checkpoints.append(checkpoint)
+        
+    # add learning rate reduction
+    if reduce_lr is not None:
+        checkpoints.append(keras.callbacks.ReduceLROnPlateau(factor=reduce_lr, patience=lr_patience, min_lr=min_lr))
+        
+    # add summary
+    if summary >= 1:
+        checkpoints.append(PrintCheckpoint(summary))
+        
+    return checkpoints

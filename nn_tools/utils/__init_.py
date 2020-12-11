@@ -1,1 +1,1 @@
-__all__ = ['plotutils', 'datacreate']
+__all__ = ['plotutils', 'datacreate', 'dirstruct']
