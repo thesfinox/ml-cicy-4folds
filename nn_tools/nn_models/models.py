@@ -100,6 +100,9 @@ def nn_inception(input_shape,
     '''
     keras.backend.clear_session()
     
+    # assert that loss_weights and outputs are same length
+    assert len(loss_weights) == len(output_names), 'Loss weights and outputs have different lengths!'
+    
     # input layer
     x = keras.layers.Input(shape=input_shape, name=name)
     I = {name: x}
