@@ -111,7 +111,7 @@ def nn_inception(input_shape,
     for n, filters in enumerate(conv_layers):
         # first branch
         a = x
-        if conv_1b1 and n != 0:
+        if conv_1b1 and n > 0:
             a = keras.layers.Conv2D(filters,
                                     kernel_size=(1, 1),
                                     padding='same',
@@ -134,7 +134,7 @@ def nn_inception(input_shape,
         
         # second branch
         b = x
-        if conv_1b1 and n != 0:
+        if conv_1b1 and n > 0:
             b = keras.layers.Conv2D(filters,
                                     kernel_size=(1, 1),
                                     padding='same',
@@ -158,13 +158,13 @@ def nn_inception(input_shape,
         # classical convolution
         c = None
         if conv_class is not None:
-            # factorise the kernel (5x5 ~ 3x3 + 3x3)
+            
             if isinstance(conv_class, int):
                 conv_class = (conv_class, conv_class)
             
             # third branch
             c = x
-            if conv_1b1 and n != 0:
+            if conv_1b1 and n > 0:
                 c = keras.layers.Conv2D(filters,
                                         kernel_size=(1, 1),
                                         padding='same',
@@ -175,15 +175,39 @@ def nn_inception(input_shape,
                                        )(c)
                 c = keras.layers.LeakyReLU(conv_alpha, name=name + '_actB1b1_' + str(n))(c)
             
-            c = keras.layers.Conv2D(filters,
-                                    kernel_size=conv_class,
-                                    padding='same',
-                                    kernel_regularizer=keras.regularizers.l1_l2(l1=l1_reg, l2=l2_reg),
-                                    kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                    bias_initializer=keras.initializers.Zeros(),
-                                    name=name + '_convB_' + str(n)
-                                   )(c)
-            c = keras.layers.LeakyReLU(conv_alpha, name=name + '_actB_' + str(n))(c)
+            if n > 1:
+                # from the third layer onward factorise kernels to speed up training
+                c1 = keras.layers.Conv2D(filters,
+                                         kernel_size=(conv_class[0], 1),
+                                         padding='same',
+                                         kernel_regularizer=keras.regularizers.l1_l2(l1=l1_reg, l2=l2_reg),
+                                         kernel_initializer=keras.initializers.GlorotUniform(random_state),
+                                         bias_initializer=keras.initializers.Zeros(),
+                                         name=name + '_convB_' + str(n)
+                                        )(c)
+                c1 = keras.layers.LeakyReLU(conv_alpha, name=name + '_actB_' + str(n))(c1)
+                
+                c2 = keras.layers.Conv2D(filters,
+                                         kernel_size=(1, conv_class[1]),
+                                         padding='same',
+                                         kernel_regularizer=keras.regularizers.l1_l2(l1=l1_reg, l2=l2_reg),
+                                         kernel_initializer=keras.initializers.GlorotUniform(random_state),
+                                         bias_initializer=keras.initializers.Zeros(),
+                                         name=name + '_convB_' + str(n)
+                                        )(c)
+                c2 = keras.layers.LeakyReLU(conv_alpha, name=name + '_actB_' + str(n))(c2)
+                
+                c  = keras.layers.concatenate([c1, c2])
+            else:
+                c = keras.layers.Conv2D(filters,
+                                        kernel_size=conv_class,
+                                        padding='same',
+                                        kernel_regularizer=keras.regularizers.l1_l2(l1=l1_reg, l2=l2_reg),
+                                        kernel_initializer=keras.initializers.GlorotUniform(random_state),
+                                        bias_initializer=keras.initializers.Zeros(),
+                                        name=name + '_convB_' + str(n)
+                                       )(c)
+                c = keras.layers.LeakyReLU(conv_alpha, name=name + '_actB_' + str(n))(c)
                 
         
         # fourth branch (1x1 convolution)
