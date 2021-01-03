@@ -19,7 +19,8 @@ if gpus:
 def nn_inception(input_shape,
                  name='inception',
                  learning_rate=1.0e-3,
-                 output_names=['h11', 'h21', 'h31', 'h22'],
+                 output_names=['out'],
+                 output_size=[1],
                  conv_1b1=False,
                  conv_layers=[32, 64, 32],
                  conv_alpha=0.0,
@@ -34,7 +35,7 @@ def nn_inception(input_shape,
                  full_dropout=0.0,
                  batchnorm=0.99,
                  last_relu=True,
-                 loss_weights=[0.25, 0.25, 0.25, 0.25],
+                 loss_weights=[1.0],
                  l1_reg=0.0,
                  l2_reg=0.0,
                  auxiliary_fc=None,
@@ -47,13 +48,14 @@ def nn_inception(input_shape,
     '''
     Create a Tensorflow model of the Inception Network.
     
-    Arguments:
+    Required arguments:
         input_shape: the shape of the input tensor (tuple).
         
-    Optional:
+    Optional arguments:
         name:                the name of the model,
         learning_rate:       the shrinking parameter of gradient descent,
         output_names:        list of names of the output,
+        output_size:         list of output sizes (default to regression: size 1),
         conv_1b1:            add 1x1 convolutions at the beginning (normalise the number of filters),
         conv_layers:         list of filters in convolutional layers,
         conv_alpha:          slope of the LeakyReLU activation of the convolutional layers,
@@ -87,17 +89,22 @@ def nn_inception(input_shape,
             INPUT
               |
               |
-            HODGE
-           NUMBERS ---- OUTPUT ---- LOSS
-              |
-              |
-          AUXILIARY
-             FC
-              |
-              |
-            HODGE
-           NUMBERS ---- OUTPUT ---- LOSS
+          INCEPTION ---------------------------
+              |                       |       |
+              |                   BACKPROP    |
+            HODGE                     |       |
+           NUMBERS ---- OUTPUT ---- LOSS      |
+              |                               |
+              |                               |
+          AUXILIARY                           |
+             FC                               |
+              |                               |
+              |                           BACKPROP
+            HODGE                             |
+           NUMBERS ---- OUTPUT ------------ LOSS
     '''
+    
+    # clear existing TF session
     keras.backend.clear_session()
     
     # assert that loss_weights and outputs are same length
@@ -304,20 +311,27 @@ def nn_inception(input_shape,
             
     # output layers
     if output_layers:
+        if not isinstance(output_names, list):
+            output_names = [output_names]
+        
+        # assert that list of sizes and list of outputs have the same length
+        assert len(output_names) == len(output_size), 'Number of outputs does not match the list of output sizes.'
+        
+        # build the output layers
         if last_relu:
-            O = {name: keras.layers.Dense(1,
+            O = {name: keras.layers.Dense(output_size[j],
                                           activation='relu',
                                           kernel_initializer=keras.initializers.GlorotUniform(random_state),
                                           bias_initializer=keras.initializers.Zeros(),
                                           name=name
-                                         )(x) for name in output_names
+                                         )(x) for j, name in enumerate(output_names)
                 }
         else:
-            O = {name: keras.layers.Dense(1,
+            O = {name: keras.layers.Dense(output_size[j],
                                           kernel_initializer=keras.initializers.GlorotUniform(random_state),
                                           bias_initializer=keras.initializers.Zeros(),
                                           name=name
-                                         )(x) for name in output_names
+                                         )(x) for j, name in enumerate(output_names)
                 }
         
         # add auxiliary output
@@ -326,9 +340,11 @@ def nn_inception(input_shape,
         
             if not isinstance(auxiliary_fc, list):
                 auxiliary_fc = [auxiliary_fc]
-                
+            
+            # re-unite the outputs in a single layer
             aux = keras.layers.concatenate([O[name] for name in O.keys()])
 
+            # add the auxiliary FC network
             for n, units in enumerate(auxiliary_fc):
                 aux = keras.layers.Dense(units,
                                          kernel_regularizer=keras.regularizers.l1_l2(l1=l1_reg, l2=l2_reg),
@@ -341,22 +357,25 @@ def nn_inception(input_shape,
                     aux = keras.layers.BatchNormalization(momentum=batchnorm, name=name + '_fcBN_aux_' + str(n))(aux)
                 if full_dropout > 0.0:
                     aux = keras.layers.Dropout(rate=full_dropout, seed=random_state, name=name + '_fcFullDrop_aux_' + str(n))(aux)
-                    
+            
+            # create the auxiliary outputs
+            output_names_aux = [name + '_' + auxiliary_suff for name in output_names]
+            
             if last_relu:
-                O_aux = {name: keras.layers.Dense(1,
+                O_aux = {name: keras.layers.Dense(output_names_aux[j],
                                                   activation='relu',
                                                   kernel_initializer=keras.initializers.GlorotUniform(random_state),
                                                   bias_initializer=keras.initializers.Zeros(),
                                                   name=name
-                                                 )(aux) for name in [name + '_' + auxiliary_suff for name in output_names]
+                                                 )(aux) for j, name in enumerate(output_names_aux)
                         }
             else:
-                O_aux = {name: keras.layers.Dense(1,
-                                              kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                              bias_initializer=keras.initializers.Zeros(),
-                                              name=name
-                                             )(aux) for name in [name + '_' + auxiliary_suff for name in output_names]
-                    }
+                O_aux = {name: keras.layers.Dense(output_names_aux[j],
+                                                  kernel_initializer=keras.initializers.GlorotUniform(random_state),
+                                                  bias_initializer=keras.initializers.Zeros(),
+                                                  name=name
+                                                 )(aux) for j, name in enumerate(output_names_aux)
+                        }
                 
         # create the loss weights
         loss_weights = {name: loss_weights[n] for n, name in enumerate(output_names)}
@@ -399,14 +418,15 @@ def nn_inception(input_shape,
 def nn_dense(input_shape,
              name='dense',
              learning_rate=1.0e-3,
-             output_names=['h11', 'h21', 'h31', 'h22'],
+             output_names=['out'],
+             output_size=[1],
              fc_layers=[32],
              fc_alpha=0.0,
              recurrent=False,
              dropout=0.2,
              batchnorm=0.99,
              last_relu=True,
-             loss_weights=[0.25, 0.25, 0.25, 0.25],
+             loss_weights=[1.0],
              l1_reg=0.0,
              l2_reg=0.0,
              auxiliary_fc=None,
@@ -419,13 +439,14 @@ def nn_dense(input_shape,
     '''
     Create a Tensorflow model of a fully connected Network.
     
-    Arguments:
+    Required arguments:
         input_shape: the shape of the input tensor.
         
-    Optional:
+    Optional arguments:
         name:                the name of the model,
         learning_rate:       the shrinking parameter of gradient descent,
         output_names:        list of names of the output,
+        output_size:         list of output sizes (default to regression: size 1),
         fc_layers:           list of units in the fully connected network,
         fc_alpha:            slope of the LeakyReLU activation of the fully connected layers,
         recurrent:           make it a recurrent network,
@@ -444,8 +465,33 @@ def nn_dense(input_shape,
         
     Returns:
         the Tensorflow model.
+        
+    N.B.:
+        the `auxiliary_fc` parameter add creates a model with multiple outputs:
+        
+            INPUT
+              |
+              |
+             FC -------------------------------
+              |                       |       |
+              |                   BACKPROP    |
+            HODGE                     |       |
+           NUMBERS ---- OUTPUT ---- LOSS      |
+              |                               |
+              |                               |
+          AUXILIARY                           |
+             FC                               |
+              |                               |
+              |                           BACKPROP
+            HODGE                             |
+           NUMBERS ---- OUTPUT ------------ LOSS
     '''
+    
+    # clear previous TF session
     keras.backend.clear_session()
+    
+    # assert that loss_weights and outputs are same length
+    assert len(loss_weights) == len(output_names), 'Loss weights and outputs have different lengths!'
     
     # input layer
     x = keras.layers.Input(shape=input_shape, name=name)
@@ -479,20 +525,24 @@ def nn_dense(input_shape,
             
     # output layers
     if output_layers:
+        
+        # assert that list of sizes and list of outputs have the same length
+        assert len(output_names) == len(output_size), 'Number of outputs does not match the list of output sizes.'
+        
         if last_relu:
-            O = {name: keras.layers.Dense(1,
+            O = {name: keras.layers.Dense(output_size[j],
                                           activation='relu',
                                           kernel_initializer=keras.initializers.GlorotUniform(random_state),
                                           bias_initializer=keras.initializers.Zeros(),
                                           name=name
-                                         )(x) for name in output_names
+                                         )(x) for j, name in enumerate(output_names)
                 }
         else:
-            O = {name: keras.layers.Dense(1,
+            O = {name: keras.layers.Dense(output_size[j],
                                           kernel_initializer=keras.initializers.GlorotUniform(random_state),
                                           bias_initializer=keras.initializers.Zeros(),
                                           name=name
-                                         )(x) for name in output_names
+                                         )(x) for j, name in enumerate(output_names)
                 }
         
         # add auxiliary output
@@ -501,9 +551,11 @@ def nn_dense(input_shape,
         
             if not isinstance(auxiliary_fc, list):
                 auxiliary_fc = [auxiliary_fc]
-                
+            
+            # re-unite the outputs in a single layer
             aux = keras.layers.concatenate([O[name] for name in O.keys()])
 
+            # create the auxiliary FC network
             for n, units in enumerate(auxiliary_fc):
                 aux = keras.layers.Dense(units,
                                          kernel_regularizer=keras.regularizers.l1_l2(l1=l1_reg, l2=l2_reg),
@@ -516,22 +568,25 @@ def nn_dense(input_shape,
                     aux = keras.layers.BatchNormalization(momentum=batchnorm, name=name + '_fcBN_aux_' + str(n))(aux)
                 if full_dropout > 0.0:
                     aux = keras.layers.Dropout(rate=full_dropout, seed=random_state, name=name + '_fcFullDrop_aux_' + str(n))(aux)
-                    
+            
+            # create the output layers
+            output_names_aux = [name + '_' + auxiliary_suff for name in output_names]
+            
             if last_relu:
-                O_aux = {name: keras.layers.Dense(1,
+                O_aux = {name: keras.layers.Dense(output_size[j],
                                                   activation='relu',
                                                   kernel_initializer=keras.initializers.GlorotUniform(random_state),
                                                   bias_initializer=keras.initializers.Zeros(),
                                                   name=name
-                                                 )(aux) for name in [name + '_' + auxiliary_suff for name in output_names]
+                                                 )(aux) for j, name in enumerate(output_names_aux)
                         }
             else:
-                O_aux = {name: keras.layers.Dense(1,
-                                              kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                              bias_initializer=keras.initializers.Zeros(),
-                                              name=name
-                                             )(aux) for name in [name + '_' + auxiliary_suff for name in output_names]
-                    }
+                O_aux = {name: keras.layers.Dense(output_size[j],
+                                                  kernel_initializer=keras.initializers.GlorotUniform(random_state),
+                                                  bias_initializer=keras.initializers.Zeros(),
+                                                  name=name
+                                                 )(aux) for j, name in enumerate(output_names_aux)
+                        }
                 
         # create the loss weights
         loss_weights = {name: loss_weights[n] for n, name in enumerate(output_names)}
@@ -573,12 +628,14 @@ def nn_dense(input_shape,
 def nn_full(models,
             name='full_model',
             learning_rate=1.0e-3,
+            output_names=['out'],
+            output_size=[1],
             fc_layers=[],
             fc_alpha=0.0,
             batchnorm=0.99,
             dropout=0.1,
             last_relu=True,
-            loss_weights=[0.25, 0.25, 0.25, 0.25],
+            loss_weights=[1.0],
             l1_reg=0.0,
             l2_reg=0.0,
             random_state=None
@@ -586,12 +643,14 @@ def nn_full(models,
     '''
     Build a full model from given separate models.
     
-    Arguments:
+    Required arguments:
         models: list of models to merge.
         
-    Optional:
+    Optional arguments:
         name:          the name of the full model,
         learning_rate: the shrinking parameter of the model,
+        output_names:  list of names of the output,
+        output_size:   list of output sizes (default to regression: size 1),
         fc_layers:     list of units of fully connected layers,
         fc_alpha:      slope of the LeakyReLU activation function,
         batchnorm:     momentum of the batch normalisation (no batch normalisation if < 0),
@@ -603,13 +662,19 @@ def nn_full(models,
     Returns:
         the full model.
     '''
+    
+    # clear previous TF session
     keras.backend.clear_session()
+    
+    # assert that loss_weights and outputs are same length
+    assert len(loss_weights) == len(output_names), 'Loss weights and outputs have different lengths!'
     
     # build inputs
     I = {model.name: model.input[model.name] for model in models}
     x = [model.output for model in models]
     x = keras.layers.Concatenate(axis=-1)(x)
     
+    # create fully connected network
     for n in range(len(fc_layers)):
         x = keras.layers.Dense(units,
                                kernel_regularizer=keras.regularizers.l1_l2(l1=l1_reg, l2=l2_reg),
@@ -623,55 +688,26 @@ def nn_full(models,
         if dropout > 0.0:
             x = keras.layers.Dropout(rate=dropout, seed=random_state, name=name + '_fcDrop_' + str(n))(x)
             
+    # assert that list of sizes and list of outputs have the same length
+    assert len(output_names) == len(output_size), 'Number of outputs does not match the list of output sizes.'
+        
     # output layers
     if last_relu:
-        O = {'h11': keras.layers.Dense(1,
-                                       activation='relu',
-                                       kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                       bias_initializer=keras.initializers.Zeros(),
-                                       name='h11'
-                                      )(x),
-             'h21': keras.layers.Dense(1,
-                                       activation='relu',
-                                       kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                       bias_initializer=keras.initializers.Zeros(),
-                                       name='h21'
-                                      )(x),
-             'h31': keras.layers.Dense(1,
-                                       activation='relu',
-                                       kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                       bias_initializer=keras.initializers.Zeros(),
-                                       name='h31'
-                                      )(x),
-             'h22': keras.layers.Dense(1,
-                                       activation='relu',
-                                       kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                       bias_initializer=keras.initializers.Zeros(),
-                                       name='h22'
-                                      )(x),
-            }
-    else:
-        O = {'h11': keras.layers.Dense(1,
-                                       kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                       bias_initializer=keras.initializers.Zeros(),
-                                       name='h11'
-                                      )(x),
-             'h21': keras.layers.Dense(1,
-                                       kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                       bias_initializer=keras.initializers.Zeros(),
-                                       name='h21'
-                                      )(x),
-             'h31': keras.layers.Dense(1,
-                                       kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                       bias_initializer=keras.initializers.Zeros(),
-                                       name='h31'
-                                      )(x),
-             'h22': keras.layers.Dense(1,
-                                       kernel_initializer=keras.initializers.GlorotUniform(random_state),
-                                       bias_initializer=keras.initializers.Zeros(),
-                                       name='h22'
-                                      )(x),
-            }
+        if last_relu:
+            O = {name: keras.layers.Dense(output_size[j],
+                                          activation='relu',
+                                          kernel_initializer=keras.initializers.GlorotUniform(random_state),
+                                          bias_initializer=keras.initializers.Zeros(),
+                                          name=name
+                                         )(x) for j, name in enumerate(output_names)
+                }
+        else:
+            O = {name: keras.layers.Dense(output_size[j],
+                                          kernel_initializer=keras.initializers.GlorotUniform(random_state),
+                                          bias_initializer=keras.initializers.Zeros(),
+                                          name=name
+                                         )(x) for j, name in enumerate(output_names)
+                }
     
     # build model
     model = keras.models.Model(inputs=I, outputs=O, name=name)
@@ -691,7 +727,8 @@ def add_fc(model_path,
            name='boost_model',
            set_trainable=False,
            learning_rate=1.0e-3,
-           outputs=['output'],
+           output_names=['output'],
+           output_size=[1],
            fc_layers=[],
            fc_alpha=0.0,
            batchnorm=0.99,
@@ -705,14 +742,15 @@ def add_fc(model_path,
     '''
     Add a fully connected network to a model (boosting a model).
     
-    Arguments:
+    Required arguments:
         model_path: path to the model to be boosted.
         
-    Optional:
+    Optional arguments:
         name:          the name of the full model,
         set_trainable: trainable attribute of the original model (bool),
         learning_rate: the shrinking parameter of the model,
-        outputs:       the list of names of the output,
+        output_names:  the list of names of the output,
+        output_size:   list of output sizes (default to regression: size 1),
         fc_layers:     list of units of fully connected layers,
         fc_alpha:      slope of the LeakyReLU activation function,
         batchnorm:     momentum of the batch normalisation,
@@ -725,7 +763,11 @@ def add_fc(model_path,
         the boosted model.
     '''
     
+    # clear previous TF session
     keras.backend.clear_session()
+    
+    # assert that loss_weights and outputs are same length
+    assert len(loss_weights) == len(output_names), 'Loss weights and outputs have different lengths!'
     
     # select input and output layers
     model_tmp = keras.models.load_model(model_path)
@@ -750,28 +792,29 @@ def add_fc(model_path,
         if dropout > 0.0:
             x = keras.layers.Dropout(rate=dropout, seed=random_state, name=name + '_bstDrop_' + str(n))(x)
             
-    # add output layer
-            
     # output layers
     if not isinstance(outputs, list):
-        outputs = [outputs]
+        output_names = [output_names]
+        
+    # assert that list of sizes and list of outputs have the same length
+    assert len(output_names) == len(output_size), 'Number of outputs does not match the list of output sizes.'
         
     if last_relu:
-        O = {name: keras.layers.Dense(1,
+        O = {name: keras.layers.Dense(output_size[j],
                                       activation='relu',
                                       kernel_initializer=keras.initializers.GlorotUniform(random_state),
                                       bias_initializer=keras.initializers.Zeros(),
                                       name=name
                                      )(x)
-             for name in outputs
+             for j, name in enumerate(output_names)
             }
     else:
-        O = {name: keras.layers.Dense(1,
+        O = {name: keras.layers.Dense(output_size[j],
                                       kernel_initializer=keras.initializers.GlorotUniform(random_state),
                                       bias_initializer=keras.initializers.Zeros(),
                                       name=name
                                      )(x)
-             for name in outputs
+             for j, name in enumerate(output_names)
             }
     
     # build model

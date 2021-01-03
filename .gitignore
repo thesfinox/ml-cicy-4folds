@@ -1,3 +1,4 @@
+tensorboard/*
 .ipynb_checkpoints/*
 logs/*
 data/*

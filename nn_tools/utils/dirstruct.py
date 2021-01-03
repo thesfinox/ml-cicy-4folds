@@ -6,7 +6,7 @@ def dir_struct(prefix, dirs=['img', 'models'], base='.'):
     '''
     Create a directory structure with subdirectories.
     
-    Needed arguments:
+    Required arguments:
         prefix: name of the prefix of the subdirectories.
     
     Optional arguments:
@@ -34,7 +34,7 @@ def list_models(outputs, root='.', validation=True):
     '''
     Find the list of saved models in a directory structure.
     
-    Needed argumets:
+    Required argumets:
         outputs: list of monitored outputs.
         
     Optional arguments:

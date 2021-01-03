@@ -10,7 +10,7 @@ class PrintCheckpoint(keras.callbacks.Callback):
     
     def __init__(self, interval):
         '''
-        Arguments:
+        Required arguments:
             interval: print status after given interval of epochs.
         '''
         super(PrintCheckpoint, self).__init__()
@@ -50,11 +50,11 @@ class PrintCheckpoint(keras.callbacks.Callback):
                 print(f'    {key} = {value:.6f}')
                 
 
-def model_checkpoints(outputs, root='.', validation=True, reduce_lr=None, lr_patience=150, min_lr=1.0e-6, summary=1):
+def model_checkpoints(outputs, root='.', validation=True, reduce_lr=None, lr_patience=150, min_lr=1.0e-6, summary=1, tensorboard=None):
     '''
     Create a list of checkpoints for each output.
     
-    Needed arguments:
+    Required arguments:
         outputs: list of outputs to checkpoints.
         
     Optional arguments:
@@ -63,7 +63,8 @@ def model_checkpoints(outputs, root='.', validation=True, reduce_lr=None, lr_pat
         reduce_lr:   learning rate reduction factor (if not None),
         lr_patience: patience of the learning rate reduction,
         min_lr:      minimum learning rate,
-        summary:     frequency of the summary statistics being printed on screen.
+        summary:     frequency of the summary statistics being printed on screen,
+        tensorboard: the directory where to save the Tensorboard data.
         
     Returns:
         a list of keras.callbacks.
@@ -89,5 +90,20 @@ def model_checkpoints(outputs, root='.', validation=True, reduce_lr=None, lr_pat
     # add summary
     if summary >= 1:
         checkpoints.append(PrintCheckpoint(summary))
+        
+    # add tensorboard
+    if tensorboard is not None:
+        
+        os.makedirs(tensorboard, exist_ok=True)
+        checkpoints.append(keras.callbacks.TensorBoard(log_dir=tensorboard,
+                                                       histogram_freq=1,
+                                                       write_graph=True,
+                                                       write_images=True,
+                                                       update_freq='epoch',
+                                                       profile_batch=2,
+                                                       embeddings_freq=0,
+                                                       embeddings_metadata=None
+                                                      )
+                          )
         
     return checkpoints
