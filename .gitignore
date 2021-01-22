@@ -1,14 +1,3 @@
-tensorboard/*
 .ipynb_checkpoints/*
-logs/*
-data/*
-img/*
-models/*
-old/*
-*output*
-nn_tools/.ipynb_checkpoints/*
-nn_tools/nn_models/.ipynb_checkpoints/*
-nn_tools/utils/.ipynb_checkpoints/*
-nn_tools/__pycache__/*
-nn_tools/nn_models/__pycache__/*
-nn_tools/utils/__pycache__/*
+img/.ipynb_checkpoints/*
+img/*.pdf
