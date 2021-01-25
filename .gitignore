@@ -1,3 +1,7 @@
+data/*
+img/*
+log/*
+mltools/*
 .ipynb_checkpoints/*
 img/.ipynb_checkpoints/*
 img/*.pdf
