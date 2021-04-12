@@ -1,0 +1,13 @@
+2021*
+err*
+out*
+X_*
+y_*
+*.slurm
+grid*.json
+cicy
+cicy_diff
+cicy_finetuned
+cicy_finetuned_nodenseh11
+clean
+preprocessing

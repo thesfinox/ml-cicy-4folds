@@ -1,0 +1,27 @@
+name: cicy
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pandas
+  - h5py=2.1
+  - pydot
+  - jupyterlab
+  - scipy
+  - matplotlib
+  - scikit-optimize
+  - scikit-learn
+  - openpyxl
+  - tensorflow-estimator=2.1
+  - python=3.6
+  - lightgbm
+  - odfpy
+  - pytables
+  - tensorflow-gpu=2.1
+  - xlrd
+  - seaborn
+  - numpy
+  - statsmodels
+  - shap
+  - ipywidgets
+
