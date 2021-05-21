@@ -188,15 +188,15 @@ class AM(keras.layers.Layer):
         
         super(AM, self).__init__(**kwargs)
         
-        self.sam  = sam
-        self.cham = cham
+        self.sam_ratio  = sam
+        self.cham_ratio = cham
         self.seed = seed
         
     def build(self, input_shape):
         
         # layers
-        self.sam  = SAM(ratio=self.sam, seed=self.seed)
-        self.cham = CHAM(ratio=self.cham, seed=self.seed)
+        self.sam  = SAM(ratio=self.sam_ratio, seed=self.seed)
+        self.cham = CHAM(ratio=self.cham_ratio, seed=self.seed)
         
     def call(self, inputs):
         
@@ -208,7 +208,7 @@ class AM(keras.layers.Layer):
     def get_config(self):
         
         config = super(AM, self).get_config()
-        config.update({'sam': self.sam, 'cham': self.cham, 'seed': self.seed})
+        config.update({'sam': self.sam_ratio, 'cham': self.cham_ratio, 'seed': self.seed})
         
         return config
 
@@ -664,23 +664,23 @@ if __name__ == '__main__':
     y_store = {'training': y_train, 'validation': y_val, 'test': y_test}
 
     # rescale the labels
-    log.debug('Rescaling the labels in [0, 1]...')
-    
-    y_min = {k: v.min() for k, v in y_train.items()}
-    y_max = {k: v.max() for k, v in y_train.items()}
+    # log.debug('Rescaling the labels in [0, 1]...')
+    # 
+    # y_min = {k: v.min() for k, v in y_train.items()}
+    # y_max = {k: v.max() for k, v in y_train.items()}
 
-    y_train = {k: (v - y_min[k]) / (y_max[k] - y_min[k]) for k, v in y_train.items()}
-    y_val   = {k: (v - y_min[k]) / (y_max[k] - y_min[k]) for k, v in y_val.items()}
-    y_test  = {k: (v - y_min[k]) / (y_max[k] - y_min[k]) for k, v in y_test.items()}
+    # y_train = {k: (v - y_min[k]) / (y_max[k] - y_min[k]) for k, v in y_train.items()}
+    # y_val   = {k: (v - y_min[k]) / (y_max[k] - y_min[k]) for k, v in y_val.items()}
+    # y_test  = {k: (v - y_min[k]) / (y_max[k] - y_min[k]) for k, v in y_test.items()}
 
     # standardise the labels
-    log.debug('Standardising the labels...')
-    y_mean = {k: v.mean() for k, v in y_train.items()}
-    y_std  = {k: v.std() for k, v in y_train.items()}
+    # log.debug('Standardising the labels...')
+    # y_mean = {k: v.mean() for k, v in y_train.items()}
+    # y_std  = {k: v.std() for k, v in y_train.items()}
 
-    y_train = {k: (v - y_mean[k]) / y_std[k] for k, v in y_train.items()}
-    y_val   = {k: (v - y_mean[k]) / y_std[k] for k, v in y_val.items()}
-    y_test  = {k: (v - y_mean[k]) / y_std[k] for k, v in y_test.items()}
+    # y_train = {k: (v - y_mean[k]) / y_std[k] for k, v in y_train.items()}
+    # y_val   = {k: (v - y_mean[k]) / y_std[k] for k, v in y_val.items()}
+    # y_test  = {k: (v - y_mean[k]) / y_std[k] for k, v in y_test.items()}
 
     # rescale the features
     log.debug('Rescaling the features in [0, 1]...')
@@ -719,7 +719,9 @@ if __name__ == '__main__':
     x = keras.layers.Reshape(input_shape + (1,))(x)
 
     # inception modules
-    for f in p['initial_filters']:
+    for i, f in enumerate(p['initial_filters']):
+
+        log.debug(f'Adding {i:d} filter with {f:d} filters...')
 
         # add regular inception modules
         x = InceptionModule(filters=f,
@@ -763,32 +765,41 @@ if __name__ == '__main__':
                                 dropout=p['full_dropout'],
                                 seed=p['seed']
                                )(x_h11)
-    
-        x_h11 = AM(sam=p['sam'], cham=p['cham'], seed=p['seed'])(x_h11)
-
         # auxiliary output
         if i == 1:
 
-            h11_aux = keras.layers.Flatten()(x_h11)
-            h11_aux = keras.layers.Dropout(rate=p['dropout'], seed=p['seed'])(h11_aux)
+            log.debug('Inserting auxiliary output for h11...')
 
-            for d in p['h11_aux_dense']:
-            
-                h11_aux = DenseActivation(d,
+            h11_aux = None
+            for d in p['h11_aux']:
+
+                h11_aux = InceptionModule(filters=d,
+                                          reduce=p['reduce'],
+                                          single=p['single'],
+                                          kernels=p['kernels'],
+                                          padding=p['padding'],
+                                          pool=p['pool'],
+                                          pool_size=p['pool_size'],
                                           alpha=p['alpha'],
                                           l1_reg=p['l1_reg'],
                                           l2_reg=p['l2_reg'],
                                           norm=p['norm'],
                                           dropout=p['full_dropout'],
                                           seed=p['seed']
-                                         )(h11_aux)
+                                         )(x_h11)
+
+                h11_aux = keras.layers.Flatten()(h11_aux)
                 
             aux['h11_aux'] = keras.layers.Dense(1,
                                                 kernel_initializer=keras.initializers.GlorotUniform(p['seed']),
                                                 bias_initializer=keras.initializers.Zeros(),
                                                 name='h11_aux'
                                                )(h11_aux)
-            
+    
+
+        # add attention
+        x_h11 = AM(sam=p['sam'], cham=p['cham'], seed=p['seed'])(x_h11)
+
     for i, f in enumerate(p['h21_filters']):
 
         # add regular inception modules
@@ -807,30 +818,39 @@ if __name__ == '__main__':
                                 seed=p['seed']
                                )(x_h21)
     
-        x_h21 = AM(sam=p['sam'], cham=p['cham'], seed=p['seed'])(x_h21)
-
         # auxiliary output
         if i == 1:
 
-            h21_aux = keras.layers.Flatten()(x_h21)
-            h21_aux = keras.layers.Dropout(rate=p['dropout'], seed=p['seed'])(h21_aux)
+            log.debug('Inserting auxiliary output for h21...')
 
-            for d in p['h21_aux_dense']:
+            h21_aux = None
+            for d in p['h21_aux']:
             
-                h21_aux = DenseActivation(d,
+                h21_aux = InceptionModule(filters=d,
+                                          reduce=p['reduce'],
+                                          single=p['single'],
+                                          kernels=p['kernels'],
+                                          padding=p['padding'],
+                                          pool=p['pool'],
+                                          pool_size=p['pool_size'],
                                           alpha=p['alpha'],
                                           l1_reg=p['l1_reg'],
                                           l2_reg=p['l2_reg'],
                                           norm=p['norm'],
                                           dropout=p['full_dropout'],
                                           seed=p['seed']
-                                         )(h21_aux)
+                                         )(x_h21)
+
+                h21_aux = keras.layers.Flatten()(h21_aux)
                 
             aux['h21_aux'] = keras.layers.Dense(1,
                                                 kernel_initializer=keras.initializers.GlorotUniform(p['seed']),
                                                 bias_initializer=keras.initializers.Zeros(),
                                                 name='h21_aux'
                                                )(h21_aux)
+
+        # add attention
+        x_h21 = AM(sam=p['sam'], cham=p['cham'], seed=p['seed'])(x_h21)
             
     for i, f in enumerate(p['h31_filters']):
 
@@ -853,19 +873,27 @@ if __name__ == '__main__':
         # auxiliary output
         if i == 1:
 
-            h31_aux = keras.layers.Flatten()(x_h31)
-            h31_aux = keras.layers.Dropout(rate=p['dropout'], seed=p['seed'])(h31_aux)
+            log.debug('Inserting auxiliary output for h31...')
 
-            for d in p['h31_aux_dense']:
+            h31_aux = None
+            for d in p['h31_aux']:
             
-                h31_aux = DenseActivation(d,
+                h31_aux = InceptionModule(filters=d,
+                                          reduce=p['reduce'],
+                                          single=p['single'],
+                                          kernels=p['kernels'],
+                                          padding=p['padding'],
+                                          pool=p['pool'],
+                                          pool_size=p['pool_size'],
                                           alpha=p['alpha'],
                                           l1_reg=p['l1_reg'],
                                           l2_reg=p['l2_reg'],
                                           norm=p['norm'],
                                           dropout=p['full_dropout'],
                                           seed=p['seed']
-                                         )(h31_aux)
+                                         )(x_h31)
+                
+                h31_aux = keras.layers.Flatten()(h31_aux)
                 
             aux['h31_aux'] = keras.layers.Dense(1,
                                                 kernel_initializer=keras.initializers.GlorotUniform(p['seed']),
@@ -894,19 +922,27 @@ if __name__ == '__main__':
         # auxiliary output
         if i == 1:
 
-            h22_aux = keras.layers.Flatten()(x_h22)
-            h22_aux = keras.layers.Dropout(rate=p['dropout'], seed=p['seed'])(h22_aux)
+            log.debug('Inserting auxiliary output for h22...')
 
-            for d in p['h22_aux_dense']:
+            h22_aux = None
+            for d in p['h22_aux']:
             
-                h22_aux = DenseActivation(d,
+                h22_aux = InceptionModule(filters=d,
+                                          reduce=p['reduce'],
+                                          single=p['single'],
+                                          kernels=p['kernels'],
+                                          padding=p['padding'],
+                                          pool=p['pool'],
+                                          pool_size=p['pool_size'],
                                           alpha=p['alpha'],
                                           l1_reg=p['l1_reg'],
                                           l2_reg=p['l2_reg'],
                                           norm=p['norm'],
                                           dropout=p['full_dropout'],
                                           seed=p['seed']
-                                         )(h22_aux)
+                                         )(x_h22)
+
+                h22_aux = keras.layers.Flatten()(h22_aux)
                 
             aux['h22_aux'] = keras.layers.Dense(1,
                                                 kernel_initializer=keras.initializers.GlorotUniform(p['seed']),
@@ -1183,17 +1219,18 @@ if __name__ == '__main__':
     model.load_weights(os.path.join(root_mod, 'val_loss.h5'))
 
     predictions = {}
-    predictions['training']   = dict(zip(labs, model.predict(X_train)))
-    predictions['validation'] = dict(zip(labs, model.predict(X_val)))
-    predictions['test']       = dict(zip(labs, model.predict(X_test)))
+    predictions['training']   = dict(zip(sorted(labs), model.predict(X_train)))
+    predictions['validation'] = dict(zip(sorted(labs), model.predict(X_val)))
+    predictions['test']       = dict(zip(sorted(labs), model.predict(X_test)))
 
     # rescale back
     y_train = y_store['training']
     y_val   = y_store['validation']
     y_test  = y_store['test']
 
-    for t in ['training', 'validation', 'test']:
-        predictions[t] = {out: (value.reshape(-1,) * y_std[out] + y_mean[out]) * (y_max[out] - y_min[out]) + y_min[out] for out, value in predictions[t].items()}
+    # for t in ['training', 'validation', 'test']:
+        # predictions[t] = {out: (value.reshape(-1,) * y_std[out] + y_mean[out]) * (y_max[out] - y_min[out]) + y_min[out] for out, value in predictions[t].items()}
+        # predictions[t] = {out: value.reshape(-1,) * (y_max[out] - y_min[out]) + y_min[out] for out, value in predictions[t].items()}
 
     # convert to lists for JSON serialisation
     for t in ['training', 'validation', 'test']:
@@ -1327,13 +1364,14 @@ if __name__ == '__main__':
         model.load_weights(os.path.join(root_mod, f'val_{l}_loss.h5'))
 
         predictions = {}
-        predictions['training']   = dict(zip(labs, list(model.predict(X_train))))
-        predictions['validation'] = dict(zip(labs, list(model.predict(X_val))))
-        predictions['test']       = dict(zip(labs, list(model.predict(X_test))))
+        predictions['training']   = dict(zip(sorted(labs), list(model.predict(X_train))))
+        predictions['validation'] = dict(zip(sorted(labs), list(model.predict(X_val))))
+        predictions['test']       = dict(zip(sorted(labs), list(model.predict(X_test))))
         
         # rescale back
-        for t in ['training', 'validation', 'test']:
-            predictions[t] = {out: (value.reshape(-1,) * y_std[out] + y_mean[out]) * (y_max[out] - y_min[out]) + y_min[out] for out, value in predictions[t].items()}
+        # for t in ['training', 'validation', 'test']:
+            # predictions[t] = {out: (value.reshape(-1,) * y_std[out] + y_mean[out]) * (y_max[out] - y_min[out]) + y_min[out] for out, value in predictions[t].items()}
+            # predictions[t] = {out: value.reshape(-1,) * (y_max[out] - y_min[out]) + y_min[out] for out, value in predictions[t].items()}
 
         # convert to lists for JSON serialisation
         for t in ['training', 'validation', 'test']:

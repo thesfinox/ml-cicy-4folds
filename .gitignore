@@ -4,6 +4,10 @@ out*
 X_*
 y_*
 *.slurm
+grid
+grid_diff
+grid_finetuned
+grid_finetuned_nodenseh11
 grid*.json
 cicy
 cicy_diff
@@ -11,3 +15,4 @@ cicy_finetuned
 cicy_finetuned_nodenseh11
 clean
 preprocessing
+preprocessing_diff
