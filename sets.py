@@ -76,24 +76,32 @@ labs = ['h11', 'h21', 'h31', 'h22']
 X_train = {feat: list(train[feat].values)}
 y_train = {l: list(train[l].astype(np.float).values.reshape(-1,)) for l in labs}
 
-with open('X_train.json', 'w') as f:
+with open(f'X_train_{int(100*args.train):d}.json', 'w') as f:
     json.dump(X_train, f)
-with open('y_train.json', 'w') as f:
+with open(f'y_train_{int(100*args.train):d}.json', 'w') as f:
     json.dump(y_train, f)
 
 X_valid = {feat: list(valid[feat].values)}
 y_valid = {l: list(valid[l].astype(np.float).values.reshape(-1,)) for l in labs}
 
-with open('X_valid.json', 'w') as f:
+with open(f'X_valid_{int(100*args.valid):d}.json', 'w') as f:
     json.dump(X_valid, f)
-with open('y_valid.json', 'w') as f:
+with open(f'y_valid_{int(100*args.valid):d}.json', 'w') as f:
     json.dump(y_valid, f)
 
 X_test = {feat: list(test[feat].values)}
 y_test = {l: list(test[l].astype(np.float).values.reshape(-1,)) for l in labs}
 
-with open('X_test.json', 'w') as f:
+with open(f'X_test_{int(100*args.test):d}.json', 'w') as f:
     json.dump(X_test, f)
-with open('y_test.json', 'w') as f:
+with open(f'y_test_{int(100*args.test):d}.json', 'w') as f:
     json.dump(y_test, f)
+
+X_test_full = {feat: list(oos[feat].values)}
+y_test_full = {l: list(oos[l].astype(np.float).values.reshape(-1,)) for l in labs}
+
+with open(f'X_test_full_{int(100*args.train):d}.json', 'w') as f:
+    json.dump(X_test_full, f)
+with open(f'y_test_full_{int(100*args.train):d}.json', 'w') as f:
+    json.dump(y_test_full, f)
 
