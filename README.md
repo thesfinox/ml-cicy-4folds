@@ -12,6 +12,8 @@ We continue earlier efforts in computing the dimensions of tangent space cohomol
 In this paper, we consider the dataset of all CY four-folds constructed as complete intersections (CICY) in products of projective spaces.
 Employing neural networks inspired from state-of-the-art computer vision architectures, we introduce the model *CICYMiner* and we improve earlier benchmarks and demonstrate that all four non-trivial Hodge numbers can be learned at the same time using a multi-task regression architecture.
 
+![](./inception_noatt.svg)
+
 ## Requirements
 
 Requirements are specified in [requirements.yml](./requirements.yml) for a [Conda](https://www.anaconda.com/) environment using Python 3.6 and [Tensorflow](https://www.tensorflow.org/) 2.1.
