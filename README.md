@@ -4,7 +4,7 @@ H. Erbin (MIT), R. Finotello (CEA Paris-Saclay), R. Schneider (Uppsala U.), M. T
 
 Code: [R. Finotello](https://thesfinox.github.io/)
 
-See also R. Schneider's [repo](https://github.com/robin-schneider/cicy-fourfolds) for additional material such as classification tasks and Bayesan hyperaparameter optimisation.
+See also R. Schneider's [repo](https://github.com/robin-schneider/cicy-fourfolds) for additional material such as classification tasks and hyperparameter optimisation.
 
 ## Abstract
 
@@ -25,7 +25,7 @@ Use [sets.py](./sets.py) to create training, validation and test sets according 
 
 For hyperparameter optimisation with a grid search, use [grid.py](./grid.py) to form a JSON file with all possible hyperparameter options.
 Use `python grid.py -h` for the complete list of options.
-The list of choices should be specified in a JSON formatted file such as [parameters.json](./parameters.json) and passed to [grid.py](./grid.py).
+The list of choices should be specified in a JSON formatted file such as [parameters.json](./parameters.json) and passed to [grid.py](./grid.py) (each parameter is a list of lists, in order to form the grid search)
 
 Files `cicy_*.py` perform the training and inference tasks.
 Use `python cicy.py -h` for a list of options.
