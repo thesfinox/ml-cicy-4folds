@@ -1,20 +1,33 @@
 # AI for CICY 4-folds
 
-## Use on the cluster
+H. Erbin (MIT), R. Finotello (CEA Paris-Saclay), R. Schneider (Uppsala U.), M. Tamaazousti (CEA Paris-Saclay)
 
-1. Use `preprocessing` to create the training sets and the grid of hyperparameters,
-2. Run `cicy` to run the optimisation.
+Code: [R. Finotello](https://thesfinox.github.io/)
 
-Use `clean` to remove error and output files.
+See also R. Schneider's [repo](https://github.com/robin-schneider/cicy-fourfolds) for additional material such as classification tasks and Bayesan hyperaparameter optimisation.
 
-## Standalone use
+## Abstract
 
-1. Use `python sets.py -h` to show the command line parameters for the creation of the datasets,
-1. Use `python grid.py -h` to show the command line parameters for the creation of the hyperparameter list,
-2. Run `python cicy.py -h` for a list of parameters for the analysis.
+We continue earlier efforts in computing the dimensions of tangent space cohomologies of Calabi-Yau (CY) manifolds using deep learning.
+In this paper, we consider the dataset of all CY four-folds constructed as complete intersections (CICY) in products of projective spaces.
+Employing neural networks inspired from state-of-the-art computer vision architectures, we introduce the model *CICYMiner* and we improve earlier benchmarks and demonstrate that all four non-trivial Hodge numbers can be learned at the same time using a multi-task regression architecture.
 
-## Virtual Environment
+## Requirements
 
-The file `requirements.yml` contains the packages needed to run the analysis.
-Using **conda**, it is possible to replicate the environment via `conda env create -f requirements.yml`.
+Requirements are specified in [requirements.yml](./requirements.yml) for a [Conda](https://www.anaconda.com/) environment using Python 3.6 and [Tensorflow](https://www.tensorflow.org/) 2.1.
+Use the command `conda env create -n cicy -f requirements.yml` (see also [here](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#building-identical-conda-environments)) to build an identical virtual environment on your local machine.
+
+## Usage Tips
+
+The CICY dataset can be found [here](http://www-thphys.physics.ox.ac.uk/projects/CalabiYau/Cicy4folds/index.html), and the original papers [here](http://arxiv.org/abs/1303.1832) and [here](http://arxiv.org/abs/1405.2073).
+
+Use [sets.py](./sets.py) to create training, validation and test sets according to your needs (use `python sets.py - h` for the list of options).
+
+For hyperparameter optimisation with a grid search, use [grid.py](./grid.py) to form a JSON file with all possible hyperparameter options.
+Use `python grid.py -h` for the complete list of options.
+The list of choices should be specified in a JSON formatted file such as [parameters.json](./parameters.json) and passed to [grid.py](./grid.py).
+
+Files `cicy_*.py` perform the training and inference tasks.
+Use `python cicy.py -h` for a list of options.
+Specifically, [cicy.py](./cicy.py) performs the training on a single branch architecture, [cicy_diff.py](./cicy_diff.py) uses a multi-task architecture to compute all four Hodge numbers at once, [cicy_diff_ablation.py](./cicy_diff_ablation.py) performs an in-depth ablation study with respect to other architectures provided as hyperparameter choices.
 
