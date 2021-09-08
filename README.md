@@ -1,8 +1,9 @@
 # AI for CICY 4-folds
 
-H. Erbin (MIT), R. Finotello (CEA Paris-Saclay), R. Schneider (Uppsala U.), M. Tamaazousti (CEA Paris-Saclay)
+_H. Erbin_ (MIT), _R. Finotello_ (CEA Paris-Saclay), _R. Schneider_ (Uppsala U.), _M. Tamaazousti_ (CEA Paris-Saclay)
 
-Code: [R. Finotello](https://thesfinox.github.io/)
+Paper: [arXiv:2108.02221](https://arxiv.org/abs/2108.02221)
+Code (in this repo): [R. Finotello](https://thesfinox.github.io/)
 
 See also R. Schneider's [repo](https://github.com/robin-schneider/cicy-fourfolds) for additional material such as classification tasks and hyperparameter optimisation.
 
